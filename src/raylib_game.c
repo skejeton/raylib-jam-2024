@@ -352,7 +352,7 @@ brick Brick_Move(brick *Brick, int dx, int dy)
 
 brick Brick_Random(void)
 {
-    srand(time());
+    srand(time(NULL));
 
     const piece CHANCE_TBL[] = {
         PIECE_HCONN,

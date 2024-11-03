@@ -1,0 +1,5 @@
+-   [ ] Update the README and other files with my game's information.
+-   [x] Brick gravity.
+-   [x] Board gravity.
+-   [x] Board simulation.
+-   [ ] Scoring system.

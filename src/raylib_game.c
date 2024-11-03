@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 //----------------------------------------------------------------------------------
 // Defines and Macros
@@ -198,7 +199,7 @@ void UpdateDrawFrame(void)
         BeginMode2D(Camera);
         {
             GFX_DrawBoardAndBricks(&Game.Gameplay.Powers, &Game.Gameplay.Board, &Game.Gameplay.Brick);
-            DrawText(TextFormat("Score: %i", Game.Gameplay.Scoring.Score), 100, 10, 10, RED);
+            DrawText(TextFormat("Score: %i", Game.Gameplay.Scoring.Score), 100, 10, 10, WHITE);
         }
         EndMode2D();
     }
@@ -353,7 +354,7 @@ brick Brick_Random(void)
 {
     srand(time());
 
-    const CHANCE_TBL[] = {
+    const piece CHANCE_TBL[] = {
         PIECE_HCONN,
         PIECE_HCONN,
         PIECE_HCONN,
@@ -370,7 +371,7 @@ brick Brick_Random(void)
         PIECE_FIRE
     };
 
-    const CHANCE_TBL_SIZE = sizeof(CHANCE_TBL)/sizeof(CHANCE_TBL[0]);
+    const int CHANCE_TBL_SIZE = sizeof(CHANCE_TBL)/sizeof(CHANCE_TBL[0]);
 
     brick NewBrick;
     NewBrick.x = BOARD_WIDTH/2-1;
@@ -868,8 +869,6 @@ trace Board_TraceFire(board *Board, int x, int y)
 
 trace Board_GetTrace(board *Board, power_board *Powers)
 {
-    bool HasSim = false;
-
     for (int y = 0; y < BOARD_HEIGHT; y++)
     {
         for (int x = 0; x < BOARD_WIDTH; x++)
@@ -1066,16 +1065,17 @@ void GP_Update(gameplay *Gameplay)
         ;
 }
 
-const CELL_SIZE = 16;
+const int CELL_SIZE = 16;
 
 void GFX_DrawCellLines(unsigned int Parts, Color color, int x, int y, int Thickness)
 {   
-    const sz = CELL_SIZE-1;
+    const int sz = CELL_SIZE-1;
+    const float offs = Thickness / 2.0; 
 
-    if (Parts & 1<<RIGHT) DrawLineEx((Vector2){x*sz+CELL_SIZE/2, y*sz+CELL_SIZE/2}, (Vector2){x*sz+CELL_SIZE, y*sz+CELL_SIZE/2}, Thickness, color);
-    if (Parts & 1<<LEFT)  DrawLineEx((Vector2){x*sz, y*sz+CELL_SIZE/2}, (Vector2){x*sz+CELL_SIZE/2, y*sz+CELL_SIZE/2}, Thickness, color);
-    if (Parts & 1<<DOWN)  DrawLineEx((Vector2){x*sz+CELL_SIZE/2, y*sz+CELL_SIZE/2}, (Vector2){x*sz+CELL_SIZE/2, y*sz+CELL_SIZE}, Thickness, color);
-    if (Parts & 1<<UP)    DrawLineEx((Vector2){x*sz+CELL_SIZE/2, y*sz}, (Vector2){x*sz+CELL_SIZE/2, y*sz+CELL_SIZE/2}, Thickness, color);
+    if (Parts & 1<<RIGHT) DrawLineEx((Vector2){x*sz+CELL_SIZE/2-offs, y*sz+CELL_SIZE/2}, (Vector2){x*sz+CELL_SIZE, y*sz+CELL_SIZE/2}, Thickness, color);
+    if (Parts & 1<<LEFT)  DrawLineEx((Vector2){x*sz, y*sz+CELL_SIZE/2}, (Vector2){x*sz+CELL_SIZE/2+offs, y*sz+CELL_SIZE/2}, Thickness, color);
+    if (Parts & 1<<DOWN)  DrawLineEx((Vector2){x*sz+CELL_SIZE/2, y*sz+CELL_SIZE/2-offs}, (Vector2){x*sz+CELL_SIZE/2, y*sz+CELL_SIZE}, Thickness, color);
+    if (Parts & 1<<UP)    DrawLineEx((Vector2){x*sz+CELL_SIZE/2, y*sz}, (Vector2){x*sz+CELL_SIZE/2, y*sz+CELL_SIZE/2+offs}, Thickness, color);
 }
 
 void GFX_DrawPiece(piece Piece, int x, int y)
@@ -1089,22 +1089,41 @@ void GFX_DrawPiece(piece Piece, int x, int y)
         PAL_WHITE,
         PAL_WHITE,
         BLUE,
-        BROWN,
+        DARKGRAY,
         ORANGE
     };
 
     int parts = Piece_OutgoingOrientations(Piece);
-    const sz = CELL_SIZE-1;
+    const int sz = CELL_SIZE-1;
 
-    GFX_DrawCellLines(parts, PIECE_PALLETE[Piece], x, y, 1);
+    if (Piece_IsConnectionType(Piece)) {
+        GFX_DrawCellLines(parts, PIECE_PALLETE[Piece], x, y, 1);
+    }
 
     switch (Piece)
     {
-        case PIECE_EMPTY:
         case PIECE_DST:
         case PIECE_JUNK:
         case PIECE_FIRE:
-            DrawRectangle(x*sz, y*sz, CELL_SIZE, CELL_SIZE, PIECE_PALLETE[Piece]);
+            DrawRectangle(x*sz, y*sz, CELL_SIZE-1, CELL_SIZE-1, PIECE_PALLETE[Piece]);
+            break;
+        default:
+            break;
+    }
+
+    switch (Piece)
+    {
+        case PIECE_DST:
+            DrawRectangle(x*sz+1, y*sz+1, CELL_SIZE-3, CELL_SIZE-3, BLACK);  
+            DrawRectangle(x*sz+2, y*sz+2, CELL_SIZE-5, CELL_SIZE-5, BLUE);  
+            break;
+        case PIECE_JUNK:
+            DrawRectangle(x*sz+1, y*sz+1, CELL_SIZE-3, CELL_SIZE-3, DARKGRAY);  
+            break;
+        case PIECE_FIRE:
+            DrawRectangle(x*sz+1, y*sz+1, CELL_SIZE-3, CELL_SIZE-3, BLACK);  
+            DrawRectangle(x*sz+2, y*sz+2, CELL_SIZE-5, CELL_SIZE-5, WHITE);  
+        default:
             break;
     }
 }
@@ -1123,18 +1142,38 @@ void GFX_DrawBoard(power_board *Powers, board *Board)
     {
         for (int x = 0; x < BOARD_WIDTH; x++)
         {
-            unsigned int Dir = Powers->Incoming[y][x];
+            if (!Piece_IsConnectionType(Board->Pieces[y][x]))
+            {
+                continue;
+            }
+
+            if (Powers->Incoming[y][x] == 0)
+            {
+                continue;
+            }
+
+            unsigned int Dir = Piece_OutgoingOrientations(Board->Pieces[y][x]);
 
             GFX_DrawCellLines(Dir, BLUE, x, y, 3);
         }
     }
+
+
+    for (int y = 0; y < BOARD_HEIGHT; y++)
+    {
+        for (int x = 0; x < BOARD_WIDTH; x++)
+        {
+            DrawRectangleLines(x*(CELL_SIZE-1), y*(CELL_SIZE-1), CELL_SIZE-1, CELL_SIZE-1, DARKGRAY);  
+        }
+    }
+
+    DrawRectangleLinesEx((Rectangle){-1, -1, (CELL_SIZE-1)*BOARD_WIDTH+2, (CELL_SIZE-1)*BOARD_HEIGHT+2}, 1, GRAY);
 
     for (int y = 0; y < BOARD_HEIGHT; y++)
     {
         for (int x = 0; x < BOARD_WIDTH; x++)
         {
             GFX_DrawPiece(Board->Pieces[y][x], x, y);
-            DrawRectangleLinesEx((Rectangle){x*(CELL_SIZE-1), y*(CELL_SIZE-1), CELL_SIZE, CELL_SIZE}, 1, PAL_GRAY); 
         }
     }
 }

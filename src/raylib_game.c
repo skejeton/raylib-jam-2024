@@ -145,6 +145,7 @@ static void GFX_DrawBoard(power_board *Powers, board *board);
 void GP_Update(gameplay *Gameplay);
 void GFX_DrawBoardAndBricks(power_board *Powers, board *Board, brick *Brick);
 brick Brick_Random(void);
+void GFX_DrawPiece(piece Piece, int x, int y);
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -196,10 +197,24 @@ void UpdateDrawFrame(void)
     BeginDrawing();
     {
         ClearBackground(BLACK);
+        Camera.offset.x = 100;
         BeginMode2D(Camera);
         {
             GFX_DrawBoardAndBricks(&Game.Gameplay.Powers, &Game.Gameplay.Board, &Game.Gameplay.Brick);
-            DrawText(TextFormat("Score: %i", Game.Gameplay.Scoring.Score), 100, 10, 10, WHITE);
+        }
+        EndMode2D();
+        Camera.offset.x = 120;
+        BeginMode2D(Camera);
+        {
+            DrawText(TextFormat("Score: %i", Game.Gameplay.Scoring.Score), 90, 10, 10, WHITE);
+            GFX_DrawPiece(PIECE_DST, 6, 4);
+            DrawText(TextFormat("Nodes\n\n"), 110, 62, 10, DARKGRAY); 
+            GFX_DrawPiece(PIECE_HCONN, 6, 6);
+            DrawText(TextFormat("Connections\n\n"), 110, 62+30, 10, DARKGRAY); 
+            GFX_DrawPiece(PIECE_FIRE, 6, 8);
+            DrawText(TextFormat("Fire\n\n"), 110, 62+30+30, 10, DARKGRAY); 
+            GFX_DrawPiece(PIECE_JUNK, 6, 10);
+            DrawText(TextFormat("Junk\n\n"), 110, 62+30+30+30, 10, DARKGRAY);
         }
         EndMode2D();
     }
@@ -974,7 +989,7 @@ void GP_Update(gameplay *Gameplay)
             Gameplay->Board.Pieces[y][x] = PIECE_EMPTY;
             Gameplay->Scoring.Score += 10*Gameplay->Scoring.Multiplier*(Gameplay->Scoring.NodeChain+1)*(Gameplay->Scoring.WireChain+1);
             Board_CleanSurroundings(&Gameplay->Board, x, y);
-            Gameplay->TimerTrace = Timer_Make(0.1f);
+            Gameplay->TimerTrace = Timer_Make(0.15f);
             Gameplay->TraceIndex = (Gameplay->TraceIndex + 1);
         }
         return;
@@ -993,7 +1008,7 @@ void GP_Update(gameplay *Gameplay)
             int x = Gameplay->TraceJunk.Xs[Gameplay->TraceJunkIndex];
             int y = Gameplay->TraceJunk.Ys[Gameplay->TraceJunkIndex];
             Gameplay->Board.Pieces[y][x] = PIECE_JUNK;
-            Gameplay->TimerJunk = Timer_Make(0.1f);
+            Gameplay->TimerJunk = Timer_Make(0.15f);
             Gameplay->TraceJunkIndex = (Gameplay->TraceJunkIndex + 1);
         }
         return;
